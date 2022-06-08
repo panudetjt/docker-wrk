@@ -1,17 +1,25 @@
 - hosts: all
   become: True
   vars:
-    - wrk_version: 4.0.2
+    - wrk_version: 4.2.0
     - wrk_tarball_url: "https://github.com/wg/wrk/archive/{{ wrk_version }}.tar.gz"
     - wrk_download_path: /tmp/wrk_working_dir
     - wrk_src_path: "{{ wrk_download_path }}/wrk-{{ wrk_version }}"
 
   tasks:
+    - name: Install virtual build-dependencies
+      apk:
+        name: --virtual build-dependencies build-base
+        state: latest
+
     - name: install necessary pkgs for wrk's Makefile
-      apk: name={{ item }} state=latest
+      apk:
+        name: "{{ item }}"
+        state: latest
       with_items:
         - tar
         - perl
+        - linux-headers
 
     - name: mkdir for download
       file: path={{ wrk_download_path }}  state=directory
@@ -22,7 +30,9 @@
       unarchive:
         src: "{{ wrk_tarball_url }}"
         dest: "{{ wrk_download_path }}"
-        copy: no
+        # copy: no
+        remote_src: yes
+        validate_certs: yes
 
     - name: make executable
       command: make
@@ -33,12 +43,14 @@
     - name: move executable
       command: cp  "{{ wrk_src_path }}/wrk"  /usr/local/bin/wrk
 
-
     - name: uninstall pkgs for wrk's Makefile
       apk: name={{ item }} state=absent
       with_items:
         - tar
         - perl
+        - build-dependencies
+        - build-base
+        - linux-headers
 
     - name: remove download path
       file: path={{ wrk_download_path }}  state=absent
